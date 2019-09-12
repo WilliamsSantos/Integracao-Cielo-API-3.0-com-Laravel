@@ -11,6 +11,11 @@
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
+Route::get('/', function ()
+{
+    return view('form');
 });
+
+Route::post('/cielo/efetuandoVenda', 'CieloController@efetuandoVenda')->name('/cielo/efetuandoVenda');
+
+
