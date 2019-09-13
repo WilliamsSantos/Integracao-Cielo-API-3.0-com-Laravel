@@ -27,7 +27,7 @@
             <input type="text" name="nom_comprador" id="nom_comprador" placeholder="nome comprador">
         </div>
         <div>
-            <input type="text" name="num_cartao" id="num_cartao" placeholder="numero cartão">
+            <input type="text" name="num_cartao" id="num_cartao" placeholder="numero cartão" maxlength="16">
         </div>
         <div>
             <input type="text" name="validade" id="validade" placeholder="validade">

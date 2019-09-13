@@ -17,5 +17,6 @@ Route::get('/', function ()
 });
 
 Route::post('/cielo/efetuandoVenda', 'CieloController@efetuandoVenda')->name('/cielo/efetuandoVenda');
+Route::post('/cielo/resAutenticacao', 'CieloController@resAutenticacao')->name('/cielo/resAutenticacao');
 
 

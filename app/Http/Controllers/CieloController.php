@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 
 use Cielo\API30\Merchant;
 
@@ -29,6 +30,9 @@ class CieloController extends Controller
       // Set todos os dados do cartão na variavel @dadosCartao
       $this->dadosCartao = $request->all();
 
+      if (!array_key_exists("preco", $this->dadosCartao)) {
+        return $this->resAutenticacao();
+      }
       // Formatação do valor total da venda em centavos
       $this->dadosCartao['preco'] = number_format((float)$this->dadosCartao['preco']*100., 0, '.', '');
 
@@ -63,10 +67,9 @@ class CieloController extends Controller
           case "4":
               $this->debitCardPayment();
               break;
-          // case "15":
-          //     $this->payment = Payment::PAYMENTTYPE_BOLETO;
-          //     $this->boletPayment();
-          //     break;
+          case "15":
+              $this->boletPayment();
+              break;
           default:
             return false;
             break;
@@ -102,13 +105,16 @@ class CieloController extends Controller
 
           // E também podemos fazer seu cancelamento, se for o caso
           // $sale = $this->cielo->cancelSale($paymentId, $this->dadosCartao['preco']);
+          // dd($linkAcess);
+
+          dd($this->sale);
 
         } catch (CieloRequestException $e) {
 
           // Em caso de erros de integração, podemos tratar o erro aqui.
           // os códigos de erro estão todos disponíveis no manual de integração.
           $error = $e->getCieloError();
-          var_dump($error);
+          dd($error->getMessage());
         }
     }
 
@@ -117,7 +123,7 @@ class CieloController extends Controller
 
       // Defina a URL de retorno para que o cliente possa voltar para a loja
       // após a autenticação do cartão
-      $this->payment->setReturnUrl('https://localhost/carrinho');
+      $this->payment->setReturnUrl('http://localhost:8000/cielo/resAutenticacao');
 
       // Crie uma instância de Debit Card utilizando os dados de teste
       // esses dados estão disponíveis no manual de integração
@@ -143,70 +149,75 @@ class CieloController extends Controller
           $authenticationUrl = $this->sale->getPayment()->getAuthenticationUrl();
 
           // Renderização da pagina de credenciamento
-          echo '<div><object id="credential_cielo_iframe" type="text/html" data="'.$authenticationUrl.'" width="800px" height="600px" style="z-index: 99999999999;position: fixed;width: 202vh;left: 3vh; top: 0vh;height: -webkit-fill-available;"></object></div>';
+          // O redirecionamento do Laravel não funcionaou
+          // Assim foi uma maneira que contrei no momento pra redirecionar
+          echo '<script language= "JavaScript">location.href="'.$authenticationUrl.'"</script>';
 
+          // echo '<div><object id="credential_cielo_iframe" type="text/html" data="'.$authenticationUrl.'" width="800px" height="600px" style="z-index: 99999999999;position: fixed;width: 202vh;left: 3vh; top: 0vh;height: -webkit-fill-available;"></object></div>';
           // printf($authenticationUrl);
-      } catch (CieloRequestException $e) {
+      } catch ( CieloRequestException $e ) {
 
-          // Em caso de erros de integração, podemos tratar o erro aqui.
-          // os códigos de erro estão todos disponíveis no manual de integração.
-          $error = $e->getCieloError();
-          var_dump($error);
+        // Em caso de erros de integração, podemos tratar o erro aqui.
+        // os códigos de erro estão todos disponíveis no manual de integração.
+        $error = $e->getCieloError();
+        dd($error);
       }
     }
 
     public function boletPayment()
     {
 
-      // Configure o ambiente
-      $environment = $environment = Environment::sandbox();
-
-      // Configure seu merchant
-      $merchant = new Merchant('MERCHANT ID', 'MERCHANT KEY');
-
-      // Crie uma instância de Sale informando o ID do pedido na loja
-      $sale = new Sale('123');
-
       // Crie uma instância de Customer informando o nome do cliente,
       // documento e seu endereço
-      $customer = $sale->customer('Fulano de Tal')
-                        ->setIdentity('00000000001')
-                        ->setIdentityType('CPF')
-                        ->address()->setZipCode('22750012')
-                                  ->setCountry('BRA')
-                                  ->setState('RJ')
-                                  ->setCity('Rio de Janeiro')
-                                  ->setDistrict('Centro')
-                                  ->setStreet('Av Marechal Camara')
-                                  ->setNumber('123');
+      $this->sale->getCustomer()->setIdentity('00000000001')
+                                ->setEmail('Pamela@gmail.com')
+                                ->setIdentityType('CPF')
+                                ->address()->setZipCode('22750012')
+                                          ->setCountry('BRA')
+                                          ->setState('RJ')
+                                          ->setCity('Rio de Janeiro')
+                                          ->setDistrict('Centro')
+                                          ->setStreet('Av Marechal Camara')
+                                          ->setNumber('123');
 
       // Crie uma instância de Payment informando o valor do pagamento
-      $payment = $sale->payment(15700)
-                      ->setType(Payment::PAYMENTTYPE_BOLETO)
-                      ->setAddress('Rua de Teste')
-                      ->setBoletoNumber('1234')
-                      ->setAssignor('Empresa de Teste')
-                      ->setDemonstrative('Desmonstrative Teste')
-                      ->setExpirationDate(date('d/m/Y', strtotime('+1 month')))
-                      ->setIdentification('11884926754')
-                      ->setInstructions('Esse é um boleto de exemplo');
+      $this->payment->setType(Payment::PAYMENTTYPE_BOLETO)
+                    ->setAddress('Rua de Teste')
+                    ->setBoletoNumber('1234')
+                    ->setAssignor('Empresa de Teste')
+                    ->setDemonstrative('Desmonstrative Teste')
+                    ->setExpirationDate(date('d/m/Y', strtotime('+1 month')))
+                    ->setIdentification('11884926754')
+                    ->setInstructions('Esse é um boleto de exemplo');
 
       // Crie o pagamento na Cielo
       try {
+
           // Configure o SDK com seu merchant e o ambiente apropriado para criar a venda
-          $sale = (new CieloEcommerce($merchant, $environment))->createSale($sale);
+          $this->sale = $this->cielo->createSale($this->sale);
 
           // Com a venda criada na Cielo, já temos o ID do pagamento, TID e demais
           // dados retornados pela Cielo
-          $paymentId = $sale->getPayment()->getPaymentId();
-          $boletoURL = $sale->getPayment()->getUrl();
+          $paymentId = $this->sale->getPayment()->getPaymentId();
+          $boletoURL = $this->sale->getPayment()->getUrl();
+
+          // Redirecionamento para a pagina de Boleto
+          // O redirecionamento do Laravel não funcionou
+          // Assim foi uma maneira que contrei no momento pra redirecionar
+          echo '<script language= "JavaScript">location.href="'.$boletoURL.'"</script>';
 
           printf("URL Boleto: %s\n", $boletoURL);
-      } catch (CieloRequestException $e) {
-          // Em caso de erros de integração, podemos tratar o erro aqui.
-          // os códigos de erro estão todos disponíveis no manual de integração.
-          $error = $e->getCieloError();
+      } catch ( CieloRequestException $e ) {
+
+        // Em caso de erros de integração, podemos tratar o erro aqui.
+        // os códigos de erro estão todos disponíveis no manual de integração.
+        $error = $e->getCieloError();
+
       }
     }
 
+    public function resAutenticacao()
+    {
+      dd($this->dadosCartao);
+    }
 }
