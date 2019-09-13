@@ -28,7 +28,8 @@ class CieloController extends Controller
     public function __construct( Request $request )
     {
 
-      //Mensagens de Erros mais comuns
+      // Mensagens de Erros mais comuns
+
       $this->messages = [
         [
           "cod" => '0',
@@ -81,6 +82,10 @@ class CieloController extends Controller
         [
           "cod"=>'126',
           "message"=> 'Campo enviado está vazio ou inválido'
+        ],
+        [
+          "cod"=>'308',
+          "message"=>"Transação não autorizada."
         ]
       ];      
 
@@ -149,7 +154,7 @@ class CieloController extends Controller
         // Crie uma instância de Credit Card utilizando os dados de teste
         // esses dados estão disponíveis no manual de integração
         $this->payment->setType( Payment::PAYMENTTYPE_CREDITCARD )
-                      ->creditCard( $this->dadosCartao['cod_seguranca'], CreditCard::VISA )
+                      ->creditCard( $this->dadosCartao['cod_seguranca'], $this->dadosCartao['bandeira'] )
                       ->setExpirationDate( $this->dadosCartao['validade'] )
                       ->setCardNumber( $this->dadosCartao['num_cartao'] )
                       ->setHolder( $this->dadosCartao['nom_comprador'] );
@@ -174,7 +179,7 @@ class CieloController extends Controller
           // $sale = $this->cielo->cancelSale($paymentId, $this->dadosCartao['preco']);
           // dd($linkAcess);
 
-          dd($this->sale->jsonSerialize());
+          dd($this->sale);
           return $this->sale->jsonSerialize();
 
         } catch ( CieloRequestException $e ) {
@@ -182,8 +187,8 @@ class CieloController extends Controller
           // Em caso de erros de integração, podemos tratar o erro aqui.
           // os códigos de erro estão todos disponíveis no manual de integração.
           $error = $e->getCieloError();
-
-          $this->getError($error->getCode());
+        
+          dd($this->getError($error->getCode()));
         }
     }
 
@@ -232,7 +237,7 @@ class CieloController extends Controller
         // os códigos de erro estão todos disponíveis no manual de integração.
         $error = $e->getCieloError();
 
-        return $this->getError($error->getCode());
+        dd( $this->getError($error->getCode()) );
       }
     }
 
@@ -278,8 +283,8 @@ class CieloController extends Controller
           // Assim foi uma maneira que contrei no momento pra redirecionar
           echo '<script language= "JavaScript">location.href="'.$boletoURL.'"</script>';
 
-          dd($this->$boletoURL);
-          return $this->$boletoURL->jsonSerialize();
+          dd( $this->$boletoURL );
+          return $this->$boletoURL;
 
       } catch ( CieloRequestException $e ) {
 
@@ -287,10 +292,9 @@ class CieloController extends Controller
         // os códigos de erro estão todos disponíveis no manual de integração.
         $error = $e->getCieloError();
 
-        return $this->getError( $error->getCode() );
+      dd( $this->getError( $error->getCode() ));
       }
     }
-
 
     public function resAutenticacao()
     {
@@ -307,10 +311,15 @@ class CieloController extends Controller
     {
       foreach ( $this->messages as $key => $value ) 
       {
-        if (  $cod_err == $value['cod'] ){
-          dd($value->jsonSerialize());
-          return $value->jsonSerialize();
+        if (  $cod_err == $this->messages[$key]['cod'] ){
+          return dd($value);
+          // return $value->jsonSerialize();
         }
       }
+      $res = [
+        "cod" => $cod_err,
+        "message"=> 'Erro na transação favor entrar em contato com suporte tecnico passando o seguinte codigo : '. $cod_err 
+      ];
+      return $res;
     }
 }
